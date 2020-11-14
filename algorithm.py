@@ -1,177 +1,155 @@
 """
 Author: Shreyansh Anand, Anne Liu
-Program to showcase the use of Markov Decision Processes in the context of WindyGridWorld
+Program to showcase the use of SARSA and Q-learning the context of WindyGridWorld
 Student Number: 20053370, 20069271
 """
+# def equation_with_anchor(person_1_prob, person_2_prob, p1_rewards, p2_rewards, person_1_not, person_2_not, average1,
+#                          average2, average3, average4):
+#     """
+#     Function to easily call the Temporal Difference Equation with anchor.
+#     person_1_prob: the probability of the first action
+#     person_2_prob: the probability of the second action
+#     p1_rewards: the first person's rewards based on the actions chosen
+#     p2_rewards: the second person's rewards based on the actions chosen
+#     person_1_not: the probabilities of the actions not chosen by the first person
+#     person_2_not: the probabilities of the actions not chosen by the second person
+#     average1, average2: the average expected probability of the first and second person's chosen actions
+#     average3, average4: the average expected probability of the first and second person's not chosen actions
+#     """
+#     alpha = 0.001
+#     person_1_return = person_1_prob + alpha * p1_rewards * (1 - person_1_prob) + alpha * (average1 - person_1_prob)
+#     person_2_return = person_2_prob + alpha * p2_rewards * (1 - person_2_prob) + alpha * (average2 - person_2_prob)
+#
+#     return_person_1_not = person_1_not - alpha * p1_rewards * person_1_not + alpha * (average3 - person_1_not)
+#     return_person_2_not = person_2_not - alpha * p2_rewards * person_2_not + alpha * (average4 - person_2_not)
+#
+#     return person_1_return, person_2_return, return_person_1_not, return_person_2_not
 
-from copy import deepcopy
-
-
-class Grid:
+def algorithm_with_anchor(person_1_prob, p1_rewards, p2_rewards, iterations, title):
     """
-    Grid class which will make the grid based on the dimensions and then can be used to find the final values.
+    General method of the first TD equation with the anchor. This will converge for Pennies
+    person_1_prob: the probability of the first action
+    person_2_prob: the probability of the second action
+    p1_rewards: the first person's rewards based on the actions chosen
+    p2_rewards: the second person's rewards based on the actions chosen
+    iterations: the number of max iterations the equation should run
+    title: the title of the plot that will be used to showcase results
     """
-    def __init__(self, size, discount_rate):
-        """
-        Initialize the grid and add a & b (and a' and b') depending on the dimensions
-        :param size: dimensions of the grid (5 or 7)
-        :param discount_rate: discount rate which impacts learning (0.75 or 0.85)
-        """
-        self.discount_rate = discount_rate
-        self.size = size
-        self.grid = []
-        for i in range(size):
-            self.grid.append([])
-            for j in range(size):
-                self.grid[i].append(0)  # initialize each cell in the grid to 0.
-        if size == 5:
-            self.a = (0, 1)
-            self.a_prime = (4, 1)
-            self.b = (0, 3)
-            self.b_prime = (2, 3)
-        elif size == 7:
-            self.a = (2, 1)
-            self.a_prime = (6, 1)
-            self.b = (0, 5)
-            self.b_prime = (3, 5)
-        self.θ = 0.01
+    #  initializing the lists to hold the probabilities of all the different actions
+    #  TODO: maybe make it flexible for the Kings rule as well
+    person_2_prob = person_1_prob.copy()
+    person1_action1 = []
+    person1_action2 = []
+    person1_action3 = []
+    person1_action4 = []
 
 
+    # person2_action1 = []
+    # person2_action2 = []
+    # initializing the sums that will be incremented during the for loop
+    sum1_action1 = 0
+    # sum2_action1 = 0
+    sum1_action2 = 0
+    # sum2_action2 = 0
 
-def grid_iterations(self):
+    sum1_action3 = 0
+    sum1_action4 = 0
+
+
+    for i in range(iterations):
+        person1_action1.append(person_1_prob[0])
+        sum1_action1 += person_1_prob[0]
+        person1_action2.append(person_1_prob[1])
+        sum1_action2 += person_1_prob[1]
+
+        person2_action1.append(person_2_prob[0])
+        sum2_action1 += person_2_prob[0]
+        person2_action2.append(person_2_prob[1])
+        sum2_action2 += person_2_prob[1]
+        # choosing an action
+        person_1_action = random.random()
+        person_2_action = random.random()
+
+        # this section is similar to the function which does not
+        # use an anchor. The only difference here is the use of the anchor.
+        if (person_1_action > person_1_prob[0]) and (person_2_action > person_2_prob[0]):
+            person_1_prob[1], person_2_prob[1], person_1_prob[0], person_2_prob[0] = equation_with_anchor(
+                person_1_prob[1], person_2_prob[1], p1_rewards[1][1], p2_rewards[1][1], person_1_prob[0]
+                # person_2_prob[0], (sum1_action2 / len(person1_action2)), (sum2_action2 / len(person1_action2)),
+                # (sum1_action1 / len(person1_action2)), (sum2_action1 / len(person1_action2)))
+
+        elif (person_1_action <= person_1_prob[0]) and (person_2_action > person_2_prob[0]):
+            person_1_prob[0], person_2_prob[1], person_1_prob[1], person_2_prob[0] = equation_with_anchor(
+                person_1_prob[0], person_2_prob[1], p1_rewards[0][1], p2_rewards[0][1], person_1_prob[1]
+                # person_2_prob[0], sum1_action1 / len(person1_action1), sum2_action2 / len(person1_action1),
+                #                   sum1_action2 / len(person1_action1), sum2_action1 / len(person1_action1))
+
+        elif (person_1_action <= person_1_prob[0]) and (person_2_action <= person_2_prob[0]):
+            person_1_prob[0], person_2_prob[0], person_1_prob[1], person_2_prob[1] = equation_with_anchor(
+                person_1_prob[0], person_2_prob[0], p1_rewards[0][0], p2_rewards[0][0], person_1_prob[1]
+                # person_2_prob[1], sum1_action1 / len(person1_action1), sum2_action1 / len(person1_action1),
+                #                   sum1_action2 / len(person1_action2), sum2_action2 / len(person2_action2))
+
+        elif (person_1_action > person_1_prob[0]) and (person_2_action <= person_2_prob[0]):
+            person_1_prob[1], person_2_prob[0], person_1_prob[0], person_2_prob[1] = equation_with_anchor(
+                person_1_prob[1], person_2_prob[0], p1_rewards[1][0], p2_rewards[1][0], person_1_prob[0]
+                # person_2_prob[1], sum1_action2 / len(person1_action1), sum2_action1 / len(person1_action1),
+                #                   sum1_action1 / len(person1_action1), sum2_action2 / len(person1_action1))
+
+    plottr([person1_action1, person1_action2], title)
+    value_printer(person_1_prob, person_2_prob, p1_rewards, p2_rewards)
+
+def plottr(p1, p2, title):
     """
-    Takes the grid and loops through each cells with the equation to find the optimal values for each part
-    :return: Nothing returned, but the grid is printed
+    A small helper function to help plot the results of the optimality problems from above
+    p1: the probabilities over time steps for the first person
+    p2: the probabilities over time steps for the second person
+    title: the title used on the graph.
     """
-    done_with_loop = False
-    grid_copy = deepcopy(self.grid)  # grid copied and saved for reference when updating the values
-    while not done_with_loop:
-        𝚫 = 0
-        for row in range(self.size):
-            # the while loop is for each iteration, these for loops are for each cell in the grid. The values are
-            # updated based on the equation for value iteration
-            for col in range(self.size):
-                difference = 0
-                if row == self.a[0] and col == self.a[1]:  # special cases a
-                    difference += 10 + self.discount_rate * grid_copy[self.a_prime[0]][self.a_prime[1]]
-                elif row == self.b[0] and col == self.b[1]:  # special cases b
-                    difference += 5 + self.discount_rate * grid_copy[self.b_prime[0]][self.b_prime[1]]
+    # the probability graph for the first person
+    x = [i for i in range(len(p1[0]))]
+    for y in range(len(p1)):
+        plt.plot(x, p1[y], label="Probability of Action " + str(y + 1))
+    plt.title(title + " : Person 1")
+    plt.xlabel = "# of Iterations"
+    plt.ylabel = "Probability"
+    plt.legend()
+    plt.show()
+    # the probability graph for the second person
+    for y in range(len(p2)):
+        plt.plot(x, p2[y], label="Probability of Action " + str(y + 1))
+    plt.legend()
+    plt.title(title + " : Person 2")
+    plt.xlabel = "# of Iterations"
+    plt.ylabel = "Probability"
+    plt.show()
 
-                elif row == 0 and col == 0:  # top row
-                    difference += (1 / 2 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row + 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col + 1]))
-                elif row == 0 and col == self.size - 1:
-                    difference += (1 / 2 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row + 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col - 1]))
-                elif row == 0 and col != self.size - 1 and col != 0:
-                    difference += (1 / 4 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row + 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col - 1])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col + 1]))
-
-                elif row == self.size - 1 and col == 0:  # bottom row
-                    difference += (1 / 2 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col + 1]))
-                elif row == self.size - 1 and col == self.size - 1:
-                    difference += (1 / 2 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col - 1]))
-                elif row == self.size - 1 and col != self.size - 1 and col != 0:
-                    difference += (1 / 4 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                            1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col - 1])) + (
-                                          1 / 4 * (self.discount_rate * grid_copy[row][col + 1]))
-                else:  # middle rows
-                    if col == 0:
-                        difference += (1 / 4 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                                1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row][col + 1])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row + 1][col]))
-                    elif col == self.size - 1:
-                        difference += (1 / 4 * (-1 + self.discount_rate * grid_copy[row][col])) + (
-                                1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row][col - 1])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row + 1][col]))
-                    else:
-                        difference += (1 / 4 * (self.discount_rate * grid_copy[row][col + 1])) + (
-                                1 / 4 * (self.discount_rate * grid_copy[row - 1][col])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row][col - 1])) + (
-                                              1 / 4 * (self.discount_rate * grid_copy[row + 1][col]))
-
-                compare_to_delta = abs(self.grid[row][col] - difference)
-                𝚫 = max(𝚫, compare_to_delta)  # see what delta to save, will be the largest change in the
-                # entire iteration
-                self.grid[row][col] = difference
-        grid_copy = deepcopy(self.grid)
-
-        if self.θ > 𝚫:  # checks to see if the theta is larger than delta which signifies the error change is
-            # not significant anymore and the grids have stabilized.
-            done_with_loop = True
-
-
-def grid_largest(self, i, j):
-    if i == self.a[0] and j == self.a[1]:
-        return str(self.a_prime[0] + 1) + ", " + str(self.a_prime[1] + 1)
-    elif i == self.b[0] and j == self.b[1]:
-        return str(self.b_prime[0] + 1) + ", " + str(self.b_prime[1] + 1)
-
-    elif i == 0 and j == 0:
-        return "⌄" if self.grid[i + 1][j] > self.grid[i][j + 1] else ">"
-
-    elif i == len(self.grid) - 1 and j == len(self.grid) - 1:
-        return "^" if self.grid[i - 1][j] > self.grid[i][j - 1] else "<"
-
-    elif i == len(self.grid) - 1 and j == 0:
-        return "^" if self.grid[i - 1][j] > self.grid[i][j + 1] else ">"
-
-    elif i == 0 and j == len(self.grid) - 1:
-        return "⌄" if self.grid[i + 1][j] > self.grid[i][j - 1] else "<"
-
-    elif i == 0 and j != 0:
-        return self.vals_compare_three("⌄", self.grid[i + 1][j], "<", self.grid[i][j - 1], ">", self.grid[i][j + 1])
-
-    elif i != 0 and j == 0:
-        return self.vals_compare_three("⌄", self.grid[i + 1][j], "^", self.grid[i - 1][j], ">", self.grid[i][j + 1])
-
-    elif i == len(self.grid) - 1:
-        return self.vals_compare_three("^", self.grid[i - 1][j], ">", self.grid[i][j + 1], "<", self.grid[i][j - 1])
-
-    elif j == len(self.grid) - 1:
-        return self.vals_compare_three("^", self.grid[i - 1][j], "<", self.grid[i][j - 1], "⌄", self.grid[i + 1][j])
-
-    else:
-        return self.vals_compare_four("^", self.grid[i - 1][j], "⌄", self.grid[i + 1][j], ">", self.grid[i][j + 1], "<",
-                                      self.grid[i][j - 1])
-
-    def draw_policy(self):
-        policy = [[0 for j in range(len(self.grid))] for i in range(len(self.grid))]
-        for i in range(len(self.grid)):
-            for j in range(len(self.grid[i])):
-                self.grid[i][j] = round(self.grid[i][j], 1)
-                term = self.grid_largest(i, j)
-                policy[i][j] = term
-            print(([''.join(['{:8}'.format(item) for item in self.grid[i]])]))
-        print("\n")
-
-        for i in range(len(policy)):
-            print(([''.join(['{:8}'.format(item) for item in policy[i]])]))
-        print("\n")
-
-
-    def vals_compare_three(self, first_dir, first_point, second_dir, second_point, third_dir, third_point):
-        largest_between_first_and_second = (first_dir, first_point) if first_point > second_point else (second_dir, second_point)
-        largest_between_first_and_third = (first_dir, first_point) if first_point > third_point else (third_dir, third_point)
-        largest = largest_between_first_and_second[0] if largest_between_first_and_second[1] > largest_between_first_and_third[1] else largest_between_first_and_third[0]
-        return largest
-
-    # plot probability change
-    plottr([person1_action1, person1_action2], [person2_action1, person2_action2], "Pennies with Anchor")
-    # results
-    print("final value for person 1: " + str(matrix_multiplier(person_1_prob, person_2_prob,  p1_rewards)))
+def value_printer(person_1_prob, person_2_prob, p1_rewards, p2_rewards):
+    """
+    small helper function to print the values of all the different problems
+    person_1_prob: the probability of the first action
+    person_2_prob: the probability of the second action
+    p1_rewards: the first person's rewards based on the actions chosen
+    p2_rewards: the second person's rewards based on the actions chosen
+    """
+    print("final value for person 1: " + str(matrix_multiplier(person_1_prob, person_2_prob, p1_rewards)))
     print("final value for person 2: " + str(matrix_multiplier(person_2_prob, person_1_prob, p2_rewards)))
     to_print1 = [round(person_1_prob[i], 4) for i in range(len(person_1_prob))]
     to_print2 = [round(person_2_prob[i], 4) for i in range(len(person_2_prob))]
     print("person 1 probability: " + str(to_print1) + " person 2 probability: " + str(to_print2))
+
+def matrix_multiplier(prob1, prob2, reward):
+    """
+    A small helper function to find the value of the games using matrix multiplication
+    prob1: the action probabilties of the first person.
+    prob2: the action probabilties of the second person.
+    reward: the reward matrix used.
+    """
+    person_1 = np.transpose(np.array(prob1))
+    person_2 = np.array(prob2)
+    rewards = np.array(reward)
+    final_scaler = np.matmul(np.matmul(person_1, rewards), person_2)
+    return final_scaler
+
+def sarsa():
+    # TODO: general function that takes the update action and runs it twice to take the Q to the next episode
