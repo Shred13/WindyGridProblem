@@ -1,140 +1,193 @@
-from random import randint
-from random import random
-from math import sqrt
-from math import log
 import numpy as np
+import matplotlib.pyplot as plt
+from collections import defaultdict
+import seaborn
 
-def genEnvironment(S,A,Wind,R,C,SR,SC,DR,DC,Stochastic):
-	sPrime = 1
-	if(Stochastic): sPrime = 3
-	T = [[[-1 for _ in range(sPrime)]for _ in range(A)]for i in range(S)]
-	Reward = [-1 for _ in range(S)]
-	Reward[DR*DC] = 0
+class Gridworld:
+    def __init__(self):
+        self.world_width = 10
+        self.world_height = 7
+        self.current_position = [3, 0]
+        self.winds = (0, 0, 0, 1, 1, 1, 2, 2, 1, 0)
+        #position of goal is final position
+        self.FINAL_POSITION = [3, 8]
 
-	for i in range(R):
-		for j in range(C):
-			for k in range(A):
-				if k == 0: #Up
-					T[i*C+j][k][0] =  (i-1)*C+j if i-1 >= 0 else i*C+j
-				if k == 1: #Right
-					T[i*C+j][k][0] =  i*C+j+1 if j+1 < C else i*C+j
-				if k == 2: #Down
-					T[i*C+j][k][0] =  (i+1)*C+j if (i+1) < R else i*C+j
-				if k == 3: #Left
-					T[i*C+j][k][0] =  i*C+j-1 if j-1 >= 0 else i*C+j
-				if k == 4: #UpRight
-					T[i*C+j][k][0] =  (i-1)*C+j+1 if i-1 >= 0 and j+1 < C else i*C+j
-				if k == 5: #RightDown
-					T[i*C+j][k][0] =  (i+1)*C+j+1 if (i+1) < R and j+1 < C else i*C+j
-				if k == 6: #DownLeft
-					T[i*C+j][k][0] =  (i+1)*C+j-1 if (i+1) < R and j-1 >= 0 else i*C+j
-				if k == 7: #LeftUp
-					T[i*C+j][k][0] =  (i-1)*C+j-1 if i-1 >= 0 and j-1 >= 0 else i*C+j
+    #Is current position the final position?
+    def is_final_position(self):
+        return self.current_position == self.FINAL_POSITION
 
-				T[i*C+j][k][0] = T[i*C+j][k][0]-Wind[j]*C if T[i*C+j][k][0]-Wind[j]*C >= 0 else T[i*C+j][k][0]
+    # actually move the actor in the world
+    def move(self, move):
+        if move == "up":
+            self.current_position[0] = self.current_position[0] - 1
+        elif move == "down":
+            self.current_position[0] = self.current_position[0] + 1
+        elif move == "left":
+            self.current_position[1] = self.current_position[1] - 1
+        elif move == "right":
+            self.current_position[1] = self.current_position[1] + 1
+        else:
+            raise Exception("Illegal move command.")
 
-				if(Stochastic):
-					if(Wind[j]!=0):
-						T[i*C+j][k][1] = T[i*C+j][k][0]+C*Wind[j]
-						T[i*C+j][k][2] = T[i*C+j][k][0]-C*Wind[j] if T[i*C+j][k][0]-C*Wind[j] >= 0 else T[i*C+j][k][0]
-					else:
-						T[i*C+j][k][1] = T[i*C+j][k][0]
-						T[i*C+j][k][2] = T[i*C+j][k][1]
+        #decrease the position based on the wind factor
+        self.current_position[0] -= self.winds[self.current_position[1]]
 
-	return T,Reward
+        if (self.current_position[0] < 0):
+            self.current_position[0] = 0
+        if (self.is_final_position()):
+            reward = 1
+        else:
+            reward = -1
+        return (self.current_position, reward)
 
-def UCB(Q,qParam,t,A):
-	ucb = [(Q[i] + sqrt(2*log(sum(qParam))/qParam[i])) for i in range(A)]
-	index = ucb.index(max(ucb))
-	qParam[index]+=1
-	return index,qParam
+    # get consequences of actions
+    # the movements that are possible
+    def project_move(self, move):
+        new_position = self.current_position[:]
+        if move == "up":
+            new_position[0] = self.current_position[0] - 1
+        elif move == "down":
+            new_position[0] = self.current_position[0] + 1
+        elif move == "left":
+            new_position[1] = self.current_position[1] - 1
+        elif move == "right":
+            new_position[1] = self.current_position[1] + 1
+        else:
+            raise Exception("Illegal move command.")
+        new_position[0] -= self.winds[new_position[1]]
+        if new_position[0] < 0:
+            new_position[0] = 0
+        return new_position
 
-def eGreedy(Q,epsilon,t,A): return Q.index(max(Q)) if random()>epsilon*(1/t) else randint(0,A-1)
+    def get_possible_moves(self):
+        possible_moves = []
+        if self.current_position[0] != 0:
+            possible_moves.append("up")
+        if self.current_position[0] != (self.world_height - 1):
+            possible_moves.append("down")
+        if self.current_position[1] != 0:
+            possible_moves.append("left")
+        if self.current_position[1] != (self.world_width - 1):
+            possible_moves.append("right")
+        return possible_moves
 
-def SARSA(T,R,Source,Destination,A,S,alpha,gamma,epsilon,Stochastics,Policy,Episodes):
-	sPrime = 3 if Stochastics else 1
-	qParams = [[1 for _ in range(A)] for _ in range(S)]
-	Q = [[0 for _ in range(A)] for _ in range(S)]
-	J,K = 0,1
-	print("Episodes","Time-Steps","Steps-In-One-Episode")
-	print(J,K-1,0)
-	for _ in range(Episodes):
-		I = 0
-		s = Source
-		if Policy == 0 : a = eGreedy(Q[s],epsilon,K,A)
-		else : a,qParams[s] = UCB(Q[s],qParams[s],K,A)
-		while(s!=Destination):
-			s1 = T[s][a][randint(0,sPrime-1)]
-			r = R[s1]
-			if Policy == 0 : a1 = eGreedy(Q[s1],epsilon,K,A)
-			else : a1,qParams[s1] = UCB(Q[s1],qParams[s1],K,A)
-			Q[s][a] = Q[s][a] + alpha*(r + gamma*Q[s1][a1] - Q[s][a])
-			s,a = s1,a1
-			J+=1
-			I+=1
-		K+=1
-		print(J,K-1,I)
+    def get_world_dimensions(self):
+        return (self.world_height, self.world_width)
 
-	return Q
-
-def SARSAlambda(T,R,Source,Destination,A,S,alpha,gamma,epsilon,Stochastics,Policy,lamb,Episodes):
-	sPrime = 3 if Stochastics else 1
-	qParams = [[1 for _ in range(A)] for _ in range(S)]
-	Q = [[0 for _ in range(A)] for _ in range(S)]
-	E = [[0 for _ in range(A)] for _ in range(S)]
-	J,K = 0,1
-	print("Episodes","Time-Steps","Steps-In-One-Episode")
-	print(J,K-1,0)
-	for _ in range(Episodes):
-		I = 0
-		s = Source
-		if Policy == 0 : a = eGreedy(Q[s],epsilon,K,A)
-		else : a,qParams[s] = UCB(Q[s],qParams[s],K,A)
-		while(s!=Destination):
-			s1 = T[s][a][randint(0,sPrime-1)]
-			r = R[s1]
-			if Policy == 0 : a1 = eGreedy(Q[s1],epsilon,K,A)
-			else : a1,qParams[s1] = UCB(Q[s1],qParams[s1],K,A)
-			delta = r + gamma*Q[s1][a1] - Q[s][a]
-			E[s][a]+=1
-			Q = [[Q[s][a] + alpha*delta*E[s][a] for a in range(A)] for s in range(S)]
-			E = [[gamma*lamb*E[s][a] for a in range(A)] for s in range(S)]
-			s,a = s1,a1
-			J+=1
-			I+=1
-		K+=1
-		print(J,K-1,I)
-
-	return Q
+    def reset(self):
+        self.current_position = [3,0]
 
 
+class Agent:
+    def __init__(self, epsilon, alpha, world: Gridworld):
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.world = world
+        self.states = np.full(world.get_world_dimensions(), -1, dtype=float)
+        self.states[3,7] = 1
+        self.Q = defaultdict(lambda: np.zeros(4))
 
-R,C = list(map(int,input().split())) #Grid Dimention
-SR,SC,DR,DC = list(map(int,input().split())) #Source and Destination
-Wind = list(map(int,input().split())) #Wind
-A = int(input()) #Type of moves
-Stochastic = True if int(input()) != 0 else False #Stochastic nature of Wind
-alpha = float(input())
-gamma = float(input())
-epsilon = float(input())
-Policy = int(input())
-lamb = float(input())
-Episodes = int(input())
-file = int(input())
 
-S = R*C
-Source = SR*C+SC
-Destination = DR*C+DC
+    def epsilon_greedy_move(self, round, epsilon, verbose = False):
+        rand = np.random.rand()
+        possible_moves = self.world.get_possible_moves()
+        # discount epsilon as time passes
+        if (rand < epsilon):
+            rand = np.random.choice(len(possible_moves))
+            move = possible_moves[rand]
+        else:
+            move = self.get_move_to_best_state(possible_moves)
+        if verbose:
+            print(move)
+        return self.world.move(move)
 
-T,Reward = genEnvironment(S,A,Wind,R,C,SR,SC,DR,DC,Stochastic)
+    def get_move_to_best_state(self, possible_moves):
+        move_values = []
+        best_move = "right"
+        for move in possible_moves:
+            new_state = self.world.project_move(move)
+            move_values.append(self.states[new_state[0], new_state[1]])
 
-if(lamb!=0): Q = SARSAlambda(T,Reward,Source,Destination,A,S,alpha,gamma,epsilon,Stochastic,Policy,lamb,Episodes)
-else : Q = SARSA(T,Reward,Source,Destination,A,S,alpha,gamma,epsilon,Stochastic,Policy,Episodes)
+        # if all state values are equal, pick a random move
+        if (all(x == move_values[0] for x in move_values)):
+            return np.random.choice(possible_moves)
+        else:
+            return possible_moves[move_values.index(max(move_values))]
 
-def graph(R,C,Q,f):
-	mat = open("".join(["Output/M",str(f),".mat"]),"w")
-	np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
-	for i in range(R):
-		mat.write("\t".join(list(map(lambda x:str(x).zfill(5),map(lambda x:round(x,2),[max(j) for j in Q[i*C:i*C+C]])))))
-		mat.write("\n")
-graph(R,C,Q,file)
+    def play_one_round(self, round, verbose = False):
+        world.reset()
+        rewards = []
+        state_history = []
+        visiting = np.zeros(world.get_world_dimensions())
+        if verbose:
+            print_board(world, (3,0))
+        nSteps = 0
+        while True:
+            nSteps += 1
+            res = self.epsilon_greedy_move(round, self.epsilon, verbose)
+            rewards.append(res[1])
+            state_history.append(res[0][:])
+            visiting[res[0][0], res[0][1]] += 1
+            if self.world.is_final_position():
+                break
+        self.learn(state_history, rewards, nSteps)
+        return np.sum(rewards)
+
+    def follow_optimal_policy(self):
+        self.world.reset()
+        state_history = []
+        rewards = []
+        while True:
+            res = self.epsilon_greedy_move(round, epsilon = 0, verbose = False)
+            state_history.append(res[0][:])
+            rewards.append(res[1])
+            if self.world.is_final_position():
+                break
+        res = np.zeros(world.get_world_dimensions())
+        for i in range(len(state_history)):
+            res[state_history[i][0], state_history[i][1]] = i + 1
+        print(res)
+        return np.sum(rewards)
+
+    def learn(self, state_history, rewards, nSteps):
+        rev = reversed(rewards)
+        update = list(reversed(np.cumsum(list(reversed(rewards)))))
+        n = np.arange(nSteps, 1, step = -1)
+        for i in np.arange(0, len(update)-1):
+            update[i] = update[i] / n[i]
+        index = 0
+        for state in state_history:
+            self.states[state[0], state[1]] = (1-self.alpha) * self.states[state[0], state[1]] + self.alpha * update[index]
+            index += 1
+
+
+def print_board(world: Gridworld, position):
+    print()
+    board = np.zeros(world.get_world_dimensions())
+    board[position[0], position[1]] = 1
+    print(board)
+
+if __name__ == '__main__':
+    all_rewards = []
+    world = Gridworld()
+    player = Agent(epsilon=.1, alpha=.2, world=world)
+    training_rounds = np.arange(1, 1001, 1)
+
+    rewards = []
+    for round in training_rounds:
+        print(round)
+        rewards.append(player.play_one_round(round=round, verbose=False))
+
+    states_printout = player.states[:]
+    states_printout = np.around(states_printout, decimals=2)
+    print(states_printout)
+
+    ret = player.follow_optimal_policy()
+    print("Reward is", ret)
+
+    plt.plot(rewards)
+    plt.show()
+    plt.show()
+
+    seaborn.heatmap(states_printout, vmin=-1, vmax=1)
+    plt.show()
