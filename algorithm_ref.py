@@ -16,6 +16,7 @@ class Gridworld:
     def is_final_position(self):
         return self.current_position == self.FINAL_POSITION
 
+    # TODO: make 8 moves for kings moves
     # actually move the actor in the world
     def move(self, move):
         if move == "up":
@@ -44,6 +45,7 @@ class Gridworld:
     # the movements that are possible
     def project_move(self, move):
         new_position = self.current_position[:]
+        # TODO: make 8 moves for kings moves
         if move == "up":
             new_position[0] = self.current_position[0] - 1
         elif move == "down":
@@ -54,11 +56,14 @@ class Gridworld:
             new_position[1] = self.current_position[1] + 1
         else:
             raise Exception("Illegal move command.")
+
+        #TODO: for stochastic gridworld this has to change
         new_position[0] -= self.winds[new_position[1]]
         if new_position[0] < 0:
             new_position[0] = 0
         return new_position
 
+    #gets all possible moves from the current state
     def get_possible_moves(self):
         possible_moves = []
         if self.current_position[0] != 0:
@@ -105,13 +110,16 @@ class Agent:
         move_values = []
         best_move = "right"
         for move in possible_moves:
+            #actually moving it
             new_state = self.world.project_move(move)
+
             move_values.append(self.states[new_state[0], new_state[1]])
 
         # if all state values are equal, pick a random move
         if (all(x == move_values[0] for x in move_values)):
             return np.random.choice(possible_moves)
         else:
+            #greedy move to pick best value
             return possible_moves[move_values.index(max(move_values))]
 
     def play_one_round(self, round, verbose = False):
@@ -157,6 +165,7 @@ class Agent:
             update[i] = update[i] / n[i]
         index = 0
         for state in state_history:
+            # TODO: WILL UPDAAAAAATE MUST MAKE SENSE 🎅
             self.states[state[0], state[1]] = (1-self.alpha) * self.states[state[0], state[1]] + self.alpha * update[index]
             index += 1
 
@@ -171,7 +180,7 @@ if __name__ == '__main__':
     all_rewards = []
     world = Gridworld()
     player = Agent(epsilon=.1, alpha=.2, world=world)
-    training_rounds = np.arange(1, 1001, 1)
+    training_rounds = np.arange(1, 100, 1)
 
     rewards = []
     for round in training_rounds:
